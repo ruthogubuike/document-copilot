@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from app.auth.dependencies import CurrentUser, get_bearer_token
 from app.chat.access import require_thread_access
 from app.chat.messages import UIMessage, message_row_to_ui
-from app.chat.orchestrator import run_stub_turn
+from app.chat.orchestrator import run_grounded_turn
 from app.chat.streaming import STREAM_HEADERS
 from app.database.chats import create_thread, list_messages, list_threads
 from app.database.supabase import create_user_client
@@ -107,7 +107,7 @@ async def stream_chat(
         ) from exc
 
     return StreamingResponse(
-        run_stub_turn(
+        run_grounded_turn(
             thread_id=thread_id,
             messages=body.messages,
             user=user,

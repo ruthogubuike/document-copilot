@@ -2,6 +2,48 @@
 
 Work top to bottom. Each phase unlocks the next. Check items off as you go.
 
+## Current status
+
+**Phases 1–6 complete** for the sample corpus. Full ingest: 25 filings, 419 `document_chunks`. Phase 7 (citation UI) is next.
+
+| Phase | Status | Notes |
+| ----- | ------ | ----- |
+| 0 — Prerequisites | Done | Corpus downloaded; toolchain + Supabase in active use |
+| 1 — Backend scaffold & DB | Done | Schema migrated, health + Supabase clients |
+| 2 — Auth | Done | Email auth full stack |
+| 3 — Chat shell | Done | Thread CRUD, AI SDK streaming, sidebar + messages |
+| 4 — Ingestion | Done | 25 `source_documents`, 419 `document_chunks`, embeddings + `tsvector` verified |
+| 5 — Retrieval | Done | Hybrid search verified via `ingest.verify_corpus` + integration tests |
+| 6 — LLM agent & grounding | Done | Grounded chat + citation persistence; manual + integration verify |
+| 7 — Trust UI | Not started | Basic streaming indicator only; no citations |
+| 8 — Pilot readiness | Not started | |
+| 9 — Deployment | Not started | |
+
+### Backend (`backend/app/`)
+
+- `GET /health`, `GET /me` — health + auth smoke test
+- `GET/POST /chat/threads`, `GET /chat/threads/{id}/messages` — thread CRUD (Supabase client + RLS)
+- `POST /chat/stream` — PydanticAI grounded agent; streams text + `data-citation` parts; persists messages + citations
+- `app/database/chats.py`, `app/database/users.py`, `app/chat/access.py` — persistence + 403/404 guards
+- `tests/chat/` — messages, access, streaming, API, orchestrator, grounding integration
+- `ingest/` — `load_source_documents`, `load_chunks`, `smoke_test_chunk`, Docling hybrid chunking + OpenAI embeddings
+- `tests/ingest/` — manifest, chunking, and embedding unit tests
+- `app/retrieval/` — `HybridRetriever` (pgvector + FTS + RRF)
+- `app/assistant/` — PydanticAI agent, tools, `GroundedAnswer` output, instructions
+- `app/grounding/` — citation validation (fail closed)
+- `tests/retrieval/` — fusion, retriever mocks, integration tests
+
+### Frontend (`frontend/src/`)
+
+- Routes: `/login`, `/signup`, `/` → `/chat`, `/chat/:threadId`
+- `ai` + `@ai-sdk/react` `useChat` with `DefaultChatTransport` → `POST /chat/stream`
+- Sidebar (thread list, new chat, sign out), message list, input, streaming indicator
+- `pnpm build` and `pnpm tsc --noEmit` pass
+
+**Next:** Phase 7 — citation chips and source passage panel in the frontend.
+
+---
+
 ## Where to start: backend, frontend, or both?
 
 **Start with foundation, then backend-led vertical slices.**
@@ -21,8 +63,8 @@ The critical path is **data model → ingestion → retrieval → LLM → citati
 
 ## Phase 0 — Prerequisites & foundation
 
-- [] Install toolchain: Python 3.12+, `uv`, Node 20+, `pnpm` (see [README](../README.md))
-- [] Create Supabase project and collect credentials ([supabase-setup](guides/supabase-setup.md))
+- [x] Install toolchain: Python 3.12+, `uv`, Node 20+, `pnpm` (see [README](../README.md))
+- [x] Create Supabase project and collect credentials ([supabase-setup](guides/supabase-setup.md))
 
 - [x] Create OpenAI API key (needed from Phase 6 onward)
 - [x] Set `USER_AGENT` in `data/download.py` and download sample 10-K corpus:
@@ -86,14 +128,15 @@ Goal: end-to-end chat UI streaming from FastAPI, no real retrieval yet.
 
 **Backend**
 
-- [x] Chat thread CRUD: list threads, create thread, load message history
+- [x] Chat thread CRUD: `GET/POST /chat/threads`, `GET /chat/threads/{id}/messages`
 - [x] `POST /chat/stream` — accepts AI SDK message format, streams a stubbed assistant reply
 - [x] Persist user + assistant messages to `chat_messages` after stream completes
-- [x] `403` when user accesses another user's thread
+- [x] `403` when user accesses another user's thread (`app/chat/access.py`)
+- [x] Unit tests: `tests/chat/` (15 tests)
 
 **Frontend**
 
-- [x] React Router: login, chat list, chat thread routes
+- [x] React Router: `/login`, `/signup`, `/chat`, `/chat/:threadId` (`/` redirects to `/chat`)
 - [x] AI SDK chat primitives pointed at `POST /chat/stream` with Supabase bearer token
 - [x] Thread sidebar (past conversations)
 - [x] Basic message list + input + streaming indicator
@@ -105,17 +148,17 @@ Goal: end-to-end chat UI streaming from FastAPI, no real retrieval yet.
 
 Goal: SEC filings in the corpus are parsed, chunked, embedded, and stored in Supabase.
 
-- [ ] `ingest/` scripts (or CLI entrypoint) for one-off corpus loading
-- [ ] HTML → normalized Markdown extraction (preserve page/section metadata)
-- [ ] Chunking strategy (size + overlap; store chunk index, page, section, ticker, filing type, year)
-- [ ] Write `source_documents` rows with filing metadata from `manifest.json`
-- [ ] Write `document_chunks` rows with text + metadata
-- [ ] OpenAI embedding generation → store `vector(1536)` per chunk
-- [ ] Generated `tsvector` populated for full-text search
-- [ ] Idempotent re-run (skip already-ingested documents)
-- [ ] Unit tests: chunking logic, metadata extraction
-- [ ] Run ingestion on full sample corpus (25 filings × 5 companies)
-- [ ] Verify: chunks exist in Supabase; spot-check a known passage (e.g. Apple revenue mix table)
+- [x] `ingest/` scripts (or CLI entrypoint) for one-off corpus loading
+- [x] HTML → normalized Markdown extraction (`data/convert_to_markdown.py`; page/section metadata richer at Docling chunk time from HTML)
+- [x] Chunking strategy (Docling `HybridChunker` + hierarchical base; chunk index, page, section, ticker, filing type, year in `chunk_metadata`)
+- [x] Write `source_documents` rows with filing metadata from `manifest.json`
+- [x] Write `document_chunks` rows with text + metadata
+- [x] OpenAI embedding generation → store `vector(1536)` per chunk
+- [x] Generated `tsvector` populated for full-text search (auto via DB; verify after chunks land)
+- [x] Idempotent re-run (skip already-ingested documents)
+- [x] Unit tests: chunking logic, metadata extraction
+- [x] Run ingestion on full sample corpus (25 filings × 5 companies)
+- [x] Verify: chunks exist in Supabase; spot-check a known passage (e.g. Apple revenue mix table)
 
 ---
 
@@ -123,13 +166,13 @@ Goal: SEC filings in the corpus are parsed, chunked, embedded, and stored in Sup
 
 Goal: a user question returns ranked, relevant source passages.
 
-- [ ] `retrieval/queries.py` — pgvector semantic search over `document_chunks`
-- [ ] `retrieval/queries.py` — Postgres full-text search over `search_vector`
-- [ ] `retrieval/fusion.py` — Reciprocal Rank Fusion in Python
-- [ ] `retrieval/retriever.py` — query → fused ranked passages + neighbor chunks
-- [ ] Unit tests: fusion ranking, query assembly (mock DB)
-- [ ] Integration test (optional, `@pytest.mark.integration`): real query against ingested corpus
-- [ ] Verify: test queries from [client-brief](client-brief.md) return relevant chunks (manual or scripted)
+- [x] `retrieval/queries.py` — pgvector semantic search over `document_chunks`
+- [x] `retrieval/queries.py` — Postgres full-text search over `search_vector`
+- [x] `retrieval/fusion.py` — Reciprocal Rank Fusion in Python
+- [x] `retrieval/retriever.py` — query → fused ranked passages + neighbor chunks
+- [x] Unit tests: fusion ranking, query assembly (mock DB)
+- [x] Integration test (optional, `@pytest.mark.integration`): real query against ingested corpus
+- [x] Verify: test queries from [client-brief](client-brief.md) return relevant chunks (`ingest.verify_corpus`)
 
 ---
 
@@ -137,24 +180,26 @@ Goal: a user question returns ranked, relevant source passages.
 
 Goal: grounded answers with enforced citations — the core product contract.
 
-- [ ] `assistant/instructions.md` — product contract (cite everything, refuse to invent, no stock picks)
-- [ ] PydanticAI agent with typed deps (`DocumentAgentDeps`) and output (`GroundedAnswer`)
-- [ ] Agent tools: `search_filings`, `read_chunk`, `read_surrounding_chunks`
-- [ ] `chat/orchestrator.py` — one turn: retrieve → agent → validate → stream → persist
-- [ ] `grounding/validator.py` — every citation maps to a retrieved passage; fail closed on violation
-- [ ] `chat/streaming.py` — AI SDK-compatible stream (text deltas + citation metadata parts)
-- [ ] Persist `message_citations` linked to assistant messages
-- [ ] Unit tests: citation validation, grounding enforcement, message conversion
-- [ ] Verify against [client-brief example questions](client-brief.md#example-analyst-questions):
-  - [ ] Answers cite specific filings and pages
-  - [ ] Under-specified questions get "not enough evidence" responses
-  - [ ] Question 10 (generative AI margins) refuses to infer beyond filings
+- [x] `assistant/instructions.md` — product contract (cite everything, refuse to invent, no stock picks)
+- [x] PydanticAI agent with typed deps (`DocumentAgentDeps`) and output (`GroundedAnswer`)
+- [x] Agent tools: `search_filings`, `read_chunk`, `read_surrounding_chunks`
+- [x] `chat/orchestrator.py` — one turn: retrieve → agent → validate → stream → persist
+- [x] `grounding/validator.py` — every citation maps to a retrieved passage; fail closed on violation
+- [x] `chat/streaming.py` — citation metadata parts in stream
+- [x] Persist `message_citations` linked to assistant messages
+- [x] Unit tests: citation validation, grounding enforcement, message conversion
+- [x] Verify against [client-brief example questions](client-brief.md#example-analyst-questions):
+  - [x] Answers cite specific filings and pages (manual chat test: iPhone revenue)
+  - [x] Under-specified questions get "not enough evidence" responses (manual: stock price target)
+  - [x] Question 10 (generative AI margins) refuses to infer beyond filings (manual + agent instructions)
 
 ---
 
 ## Phase 7 — Trust UI (citations & source passages)
 
 Goal: analysts can verify every claim in one click — this is what makes the product usable.
+
+> Phase 3 shipped a basic streaming indicator and minimal error display. Citation UI and corpus-aware empty/error states are still out of scope.
 
 - [ ] Citation chips/links on assistant messages (company, filing type, date, page/section)
 - [ ] Source passage panel — show underlying excerpt for selected citation
@@ -172,7 +217,7 @@ Goal: 5 senior analysts can use it for a week and report ≥3 hours saved per an
 - [ ] README "Running locally" section — copy-paste commands for backend + frontend + env vars
 - [ ] Seed or document how to ingest/update the corpus
 - [ ] Smoke-test all 10 example questions from the client brief
-- [ ] Confirm chat history persists across sessions
+- [x] Confirm chat history persists across sessions (Phase 3 vertical slice)
 - [ ] Confirm ~40-user scale assumptions (no hardcoded single-user shortcuts)
 - [ ] Basic structured logging on backend (`structlog`) for debugging failed turns
 - [ ] Review latency: streaming starts within a few seconds for typical queries

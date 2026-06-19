@@ -37,6 +37,14 @@ class Settings(BaseSettings):
     openai_embedding_model: str = "text-embedding-3-small"
     openai_embedding_dimensions: int = 1536
 
+    openai_chat_model: str = "gpt-4.1-mini"
+    agent_max_tool_calls: int = 10
+
+    retrieval_candidate_k: int = 50
+    retrieval_top_k: int = 10
+    retrieval_rrf_k: int = 60
+    retrieval_neighbor_window: int = 1
+
     @computed_field
     @property
     def sqlalchemy_database_url(self) -> str:
@@ -46,6 +54,14 @@ class Settings(BaseSettings):
             return url.replace("postgresql://", "postgresql+psycopg://", 1)
         if url.startswith("postgres://"):
             return url.replace("postgres://", "postgresql+psycopg://", 1)
+        return url
+
+    @computed_field
+    @property
+    def async_sqlalchemy_database_url(self) -> str:
+        url = self.sqlalchemy_database_url
+        if url.startswith("postgresql+psycopg://"):
+            return url.replace("postgresql+psycopg://", "postgresql+psycopg_async://", 1)
         return url
 
 

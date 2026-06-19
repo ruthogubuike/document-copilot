@@ -48,6 +48,72 @@ uv run alembic revision --autogenerate -m "describe change"   # after model chan
 
 Use the **direct** Supabase Postgres connection string in `DATABASE_URL`, not the transaction pooler.
 
+## Ingest corpus into the database
+
+Load converted markdown filings from `data/markdown/` into `source_documents`:
+
+```bash
+uv run python -m ingest.load_source_documents
+```
+
+Re-runs skip documents already present (matched by `accession_number`). Set `SKIP_EXISTING = False` in `ingest/load_source_documents.py` to refresh markdown content in place.
+
+## Chunk, embed, and load retrieval passages
+
+Chunk HTML filings with Docling's hybrid chunker, embed with OpenAI, and write `document_chunks`:
+
+```bash
+# 1. Verify end-to-end with one chunk (cheap — one embedding API call)
+uv run python -m ingest.smoke_test_chunk
+
+# 2. Pilot a single filing
+uv run python -m ingest.load_chunks --accession 0000320193-25-000079
+
+# 3. Full corpus (skips documents that already have chunks)
+uv run python -m ingest.load_chunks
+
+# Verify ingest + retrieval against client-brief queries
+uv run python -m ingest.verify_corpus
+
+# Rebuild chunks for a filing that was already ingested
+uv run python -m ingest.load_chunks --accession 0000320193-25-000079 --force-rechunk
+```
+
+## Hybrid retrieval (Phase 5)
+
+Search ingested chunks with pgvector + Postgres full-text + RRF fusion:
+
+```bash
+# Smoke search from the CLI
+uv run python -m app.retrieval.smoke_search "Apple iPhone Services revenue mix"
+uv run python -m app.retrieval.smoke_search "NVIDIA Data Center" --ticker NVDA
+
+# Tests
+uv run pytest tests/retrieval -m "not integration"
+uv run pytest tests/retrieval -m integration   # requires ingested chunks + OpenAI key
+```
+
+Requires `source_documents` rows and `data/downloads/` HTML sources. Chunking re-parses HTML into a `DoclingDocument` (native Docling chunkers require structured documents, not markdown alone).
+
+## Grounded chat agent (Phase 6)
+
+`POST /chat/stream` runs a PydanticAI agent with hybrid retrieval tools, validates citations, streams text + `data-citation` parts, and persists `message_citations`.
+
+Config (optional overrides in `.env`):
+
+- `OPENAI_CHAT_MODEL` — default `gpt-4.1-mini`
+- `AGENT_MAX_TOOL_CALLS` — default `10`
+
+```bash
+# Unit tests (mocked agent, no live OpenAI)
+uv run pytest tests/grounding tests/assistant tests/chat -m "not integration"
+
+# Live agent + retrieval (requires ingested chunks + OpenAI key)
+uv run pytest tests/chat/test_grounded_integration.py -m integration
+```
+
+Live chat verification also needs `document_chunks` from `ingest.load_chunks` before asking filing questions in the UI.
+
 ## Tests and lint
 
 ```bash

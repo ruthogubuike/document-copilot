@@ -11,9 +11,11 @@ from fastapi import HTTPException
 from app.chat.messages import (
     UIMessage,
     UIMessagePart,
+    citation_parts,
     extract_text_from_parts,
     latest_user_message,
     message_row_to_ui,
+    messages_to_agent_history,
     ui_message_to_persist,
 )
 from app.database.chats import ChatMessageRow
@@ -82,3 +84,62 @@ def test_ui_message_to_persist_builds_content_and_parts() -> None:
     content, parts = ui_message_to_persist(message)
     assert content == "Question?"
     assert parts == [{"type": "text", "text": "Question?"}]
+
+
+def test_messages_to_agent_history_excludes_latest_user_turn() -> None:
+    messages = [
+        UIMessage(id="1", role="user", parts=[UIMessagePart(type="text", text="First")]),
+        UIMessage(
+            id="2",
+            role="assistant",
+            parts=[UIMessagePart(type="text", text="Reply")],
+        ),
+        UIMessage(
+            id="3",
+            role="user",
+            parts=[UIMessagePart(type="text", text="Follow up")],
+        ),
+    ]
+
+    history = messages_to_agent_history(messages)
+
+    assert len(history) == 2
+    assert history[0].parts[0].content == "First"
+    assert history[1].parts[0].content == "Reply"
+
+
+def test_citation_parts_include_filing_metadata() -> None:
+    import uuid
+    from datetime import date
+
+    from app.assistant.outputs import Citation
+    from app.retrieval.types import RetrievedPassage
+
+    chunk_id = uuid.uuid4()
+    passage = RetrievedPassage(
+        chunk_id=chunk_id,
+        chunk_index=0,
+        text="Revenue mix shifted toward Services.",
+        document_id=uuid.uuid4(),
+        ticker="AAPL",
+        company_name="Apple Inc.",
+        form="10-K",
+        fiscal_year=2025,
+        filing_date=date(2025, 10, 31),
+        accession_number="0000320193-25-000079",
+        source_url="https://example.com",
+    )
+    parts = citation_parts(
+        [
+            Citation(
+                citation_index=1,
+                chunk_id=chunk_id,
+                excerpt="Revenue mix shifted toward Services.",
+            )
+        ],
+        {chunk_id: passage},
+    )
+
+    assert parts[0]["type"] == "data-citation"
+    assert parts[0]["data"]["ticker"] == "AAPL"
+    assert parts[0]["data"]["companyName"] == "Apple Inc."

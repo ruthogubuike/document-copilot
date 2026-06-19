@@ -9,6 +9,8 @@ from typing import Any
 
 from supabase import Client
 
+from app.retrieval.types import RetrievedPassage
+
 
 @dataclass(frozen=True, slots=True)
 class ChatThreadRow:
@@ -172,3 +174,38 @@ def append_messages(
         {"updated_at": datetime.now(UTC).isoformat()}
     ).eq("id", str(thread_id)).execute()
     return user_row, assistant_row
+
+
+def append_citations(
+    client: Client,
+    message_id: uuid.UUID,
+    citations: list,
+    passages: dict[uuid.UUID, RetrievedPassage],
+) -> None:
+    if not citations:
+        return
+
+    from app.assistant.outputs import Citation
+
+    rows = []
+    for citation in citations:
+        if not isinstance(citation, Citation):
+            raise TypeError("citations must be Citation instances")
+        passage = passages[citation.chunk_id]
+        rows.append(
+            {
+                "id": str(uuid.uuid4()),
+                "message_id": str(message_id),
+                "chunk_id": str(citation.chunk_id),
+                "citation_index": citation.citation_index,
+                "excerpt": citation.excerpt,
+                "ticker": passage.ticker,
+                "company_name": passage.company_name,
+                "form": passage.form,
+                "filing_date": passage.filing_date.isoformat(),
+                "page": passage.page,
+                "section": passage.section,
+            }
+        )
+
+    client.table("message_citations").insert(rows).execute()

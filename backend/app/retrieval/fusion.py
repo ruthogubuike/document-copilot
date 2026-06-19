@@ -1,0 +1,16 @@
+from __future__ import annotations
+
+import uuid
+from collections import defaultdict
+
+
+def reciprocal_rank_fusion(
+    rankings: list[list[uuid.UUID]],
+    *,
+    k: int = 60,
+) -> list[tuple[uuid.UUID, float]]:
+    scores: dict[uuid.UUID, float] = defaultdict(float)
+    for ranking in rankings:
+        for rank, chunk_id in enumerate(ranking, start=1):
+            scores[chunk_id] += 1.0 / (k + rank)
+    return sorted(scores.items(), key=lambda item: -item[1])

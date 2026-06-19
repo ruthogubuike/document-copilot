@@ -7,8 +7,11 @@ from typing import Any
 
 from fastapi import HTTPException, status
 from pydantic import BaseModel, ConfigDict, Field
+from pydantic_ai.messages import ModelMessage, ModelRequest, ModelResponse, TextPart, UserPromptPart
 
+from app.assistant.outputs import Citation
 from app.database.chats import ChatMessageRow
+from app.retrieval.types import RetrievedPassage
 
 
 class UIMessagePart(BaseModel):
@@ -66,3 +69,44 @@ def ui_message_to_persist(message: UIMessage) -> tuple[str, list[dict[str, Any]]
 
 def new_message_id() -> str:
     return str(uuid.uuid4())
+
+
+def citation_parts(
+    citations: list[Citation],
+    passages: dict[uuid.UUID, RetrievedPassage],
+) -> list[dict[str, Any]]:
+    parts: list[dict[str, Any]] = []
+    for citation in citations:
+        passage = passages[citation.chunk_id]
+        parts.append(
+            {
+                "type": "data-citation",
+                "data": {
+                    "citationIndex": citation.citation_index,
+                    "chunkId": str(citation.chunk_id),
+                    "ticker": passage.ticker,
+                    "companyName": passage.company_name,
+                    "form": passage.form,
+                    "filingDate": passage.filing_date.isoformat(),
+                    "page": passage.page,
+                    "section": passage.section,
+                    "excerpt": citation.excerpt,
+                },
+            }
+        )
+    return parts
+
+
+def messages_to_agent_history(messages: list[UIMessage]) -> list[ModelMessage]:
+    prior = messages[:-1] if messages and messages[-1].role == "user" else messages
+
+    history: list[ModelMessage] = []
+    for message in prior:
+        text = extract_text_from_parts(message.parts)
+        if not text:
+            continue
+        if message.role == "user":
+            history.append(ModelRequest(parts=[UserPromptPart(content=text)]))
+        elif message.role == "assistant":
+            history.append(ModelResponse(parts=[TextPart(content=text)]))
+    return history

@@ -92,13 +92,49 @@ def test_get_messages_returns_403_for_other_users_thread() -> None:
 
 
 def test_stream_returns_event_stream() -> None:
+    from collections.abc import AsyncIterator
+    from contextlib import asynccontextmanager
+    from unittest.mock import AsyncMock
+
+    from app.assistant.outputs import GroundedAnswer
+
+    class _FakeStreamResult:
+        async def stream_output(self) -> AsyncIterator[GroundedAnswer]:
+            yield GroundedAnswer(
+                answer="Grounded answer [1].",
+                citations=[],
+            )
+
+        async def get_output(self) -> GroundedAnswer:
+            return GroundedAnswer(answer="Grounded answer [1].", citations=[])
+
+    @asynccontextmanager
+    async def fake_run_stream(*_args, **_kwargs):
+        yield _FakeStreamResult()
+
+    @asynccontextmanager
+    async def fake_session():
+        yield AsyncMock()
+
     app.dependency_overrides[get_current_user] = _override_user
     app.dependency_overrides[get_bearer_token] = lambda: "token"
     try:
         with (
             patch("app.chat.orchestrator.require_thread_access", return_value=_thread_row()),
             patch("app.chat.orchestrator.ensure_user"),
+            patch("app.chat.orchestrator.get_async_session", fake_session),
+            patch("app.chat.orchestrator.document_agent.run_stream", fake_run_stream),
+            patch("app.chat.orchestrator.validate_grounded_answer"),
+            patch(
+                "app.chat.orchestrator.normalize_grounded_answer",
+                side_effect=lambda answer, _chunks: answer,
+            ),
+            patch(
+                "app.chat.orchestrator.citation_parts",
+                return_value=[{"type": "data-citation", "data": {"citationIndex": 1}}],
+            ),
             patch("app.chat.orchestrator.append_messages"),
+            patch("app.chat.orchestrator.append_citations"),
             patch("app.chat.orchestrator.create_user_client"),
         ):
             response = client.post(
