@@ -9,7 +9,12 @@ cd frontend
 pnpm create vite . --template react-ts
 pnpm install
 pnpm add react-router-dom @supabase/supabase-js
-pnpm add -D tailwindcss @tailwindcss/vite
+pnpm add -D tailwindcss @tailwindcss/vite @types/node
+```
+
+Add `@import "tailwindcss";` to the top of `src/index.css`, then configure the `@/*` import alias in `tsconfig.json`, `tsconfig.app.json`, and `vite.config.ts` (see [shadcn Vite install](https://ui.shadcn.com/docs/installation/vite)).
+
+```bash
 pnpm dlx shadcn@latest init
 ```
 
