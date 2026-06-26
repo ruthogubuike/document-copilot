@@ -9,16 +9,16 @@ from __future__ import annotations
 import argparse
 import sys
 
+from app.database.session import get_async_session
+from app.retrieval.asyncio_compat import run_async
+from app.retrieval.retriever import HybridRetriever
+from app.retrieval.types import RetrievalFilters
+
 
 def _print_text(text: str) -> None:
     """Print safely on Windows consoles that default to cp1252."""
     encoding = sys.stdout.encoding or "utf-8"
     print(text.encode(encoding, errors="replace").decode(encoding))
-
-from app.database.session import get_async_session
-from app.retrieval.asyncio_compat import run_async
-from app.retrieval.retriever import HybridRetriever
-from app.retrieval.types import RetrievalFilters
 
 
 async def run_smoke_search(query: str, *, ticker: str | None) -> None:

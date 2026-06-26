@@ -71,6 +71,40 @@ def new_message_id() -> str:
     return str(uuid.uuid4())
 
 
+def derive_thread_title(text: str, *, max_length: int = 60) -> str:
+    """Build a short, human-friendly thread title from the first user message."""
+    collapsed = " ".join(text.split())
+    if not collapsed:
+        return "New chat"
+    if len(collapsed) <= max_length:
+        title = collapsed
+    else:
+        truncated = collapsed[:max_length].rsplit(" ", 1)[0].rstrip(" ,;:-")
+        title = f"{truncated}…"
+    return title[0].upper() + title[1:]
+
+
+def _citation_context(passage: RetrievedPassage) -> list[dict[str, Any]]:
+    """Cited chunk plus its neighbors, in document order, with full markdown text.
+
+    The excerpt sent for grounding has its whitespace collapsed, which destroys
+    markdown tables. The frontend renders this context instead so passages stay
+    legible and the cited chunk has surrounding context.
+    """
+    chunks = sorted(
+        [passage, *passage.neighbor_chunks],
+        key=lambda chunk: chunk.chunk_index,
+    )
+    return [
+        {
+            "chunkIndex": chunk.chunk_index,
+            "text": chunk.text,
+            "isCited": chunk.chunk_id == passage.chunk_id,
+        }
+        for chunk in chunks
+    ]
+
+
 def citation_parts(
     citations: list[Citation],
     passages: dict[uuid.UUID, RetrievedPassage],
@@ -91,6 +125,8 @@ def citation_parts(
                     "page": passage.page,
                     "section": passage.section,
                     "excerpt": citation.excerpt,
+                    "chunkIndex": passage.chunk_index,
+                    "context": _citation_context(passage),
                 },
             }
         )

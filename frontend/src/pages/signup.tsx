@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
 
+import { BrandLogo } from '@/components/brand-logo'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -11,7 +12,7 @@ import {
 } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/use-auth'
 
 export function SignUpPage() {
   const { signUp, session, isLoading } = useAuth()
@@ -53,10 +54,11 @@ export function SignUpPage() {
   }
 
   return (
-    <div className="flex min-h-svh items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
+    <div className="auth-backdrop flex min-h-svh flex-col items-center justify-center gap-6 p-4">
+      <BrandLogo />
+      <Card className="w-full max-w-sm shadow-xl shadow-primary/5">
         <CardHeader>
-          <CardTitle>Create account</CardTitle>
+          <CardTitle className="text-lg">Create your account</CardTitle>
           <CardDescription>
             Sign up with your work email to use Document Copilot.
           </CardDescription>
@@ -102,7 +104,10 @@ export function SignUpPage() {
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
             Already have an account?{' '}
-            <Link className="text-foreground underline" to="/login">
+            <Link
+              className="text-primary font-medium underline-offset-4 hover:underline"
+              to="/login"
+            >
               Sign in
             </Link>
           </p>

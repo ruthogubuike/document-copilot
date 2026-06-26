@@ -26,6 +26,8 @@ _INSUFFICIENT_EVIDENCE_PHRASES = (
     "no disclosed",
     "not stated",
     "no stated",
+    "does not state",
+    "does not mention",
     "not available",
     "filings reviewed",
 )

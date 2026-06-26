@@ -3,9 +3,9 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from app.assistant.outputs import Citation, GroundedAnswer
+from app.assistant.outputs import MAX_CITATION_EXCERPT, Citation, GroundedAnswer
 from app.grounding.normalize import normalize_grounded_answer
-from app.grounding.validator import GroundingError, validate_grounded_answer
+from app.grounding.validator import validate_grounded_answer
 from app.retrieval.types import RetrievedPassage
 
 
@@ -22,6 +22,16 @@ def _passage(chunk_id: uuid.UUID, text: str) -> RetrievedPassage:
         accession_number="0000320193-25-000079",
         source_url="https://example.com",
     )
+
+
+def test_citation_truncates_oversized_excerpt_on_parse() -> None:
+    long_excerpt = "x" * 3000
+    citation = Citation(
+        citation_index=1,
+        chunk_id=uuid.uuid4(),
+        excerpt=long_excerpt,
+    )
+    assert len(citation.excerpt) == MAX_CITATION_EXCERPT
 
 
 def test_normalize_replaces_non_matching_excerpt_with_chunk_fallback() -> None:

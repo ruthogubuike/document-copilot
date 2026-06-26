@@ -4,7 +4,7 @@ Work top to bottom. Each phase unlocks the next. Check items off as you go.
 
 ## Current status
 
-**Phases 1–6 complete** for the sample corpus. Full ingest: 25 filings, 419 `document_chunks`. Phase 7 (citation UI) is next.
+**Phases 1–7 complete** for the sample corpus. Full ingest: 25 filings, 419 `document_chunks`. Phase 8 (pilot readiness) is next.
 
 | Phase | Status | Notes |
 | ----- | ------ | ----- |
@@ -15,7 +15,7 @@ Work top to bottom. Each phase unlocks the next. Check items off as you go.
 | 4 — Ingestion | Done | 25 `source_documents`, 419 `document_chunks`, embeddings + `tsvector` verified |
 | 5 — Retrieval | Done | Hybrid search verified via `ingest.verify_corpus` + integration tests |
 | 6 — LLM agent & grounding | Done | Grounded chat + citation persistence; manual + integration verify |
-| 7 — Trust UI | Not started | Basic streaming indicator only; no citations |
+| 7 — Trust UI | Done | Citation chips, source panel, empty/error states |
 | 8 — Pilot readiness | Not started | |
 | 9 — Deployment | Not started | |
 
@@ -38,9 +38,11 @@ Work top to bottom. Each phase unlocks the next. Check items off as you go.
 - Routes: `/login`, `/signup`, `/` → `/chat`, `/chat/:threadId`
 - `ai` + `@ai-sdk/react` `useChat` with `DefaultChatTransport` → `POST /chat/stream`
 - Sidebar (thread list, new chat, sign out), message list, input, streaming indicator
+- Citation chips on assistant messages; right-side source passage panel (Sheet)
+- Corpus-aware empty states, typed error banners, submitted/streaming status labels
 - `pnpm build` and `pnpm tsc --noEmit` pass
 
-**Next:** Phase 7 — citation chips and source passage panel in the frontend.
+**Next:** Phase 8 — pilot readiness (local runbook, logging, smoke tests).
 
 ---
 
@@ -201,12 +203,12 @@ Goal: analysts can verify every claim in one click — this is what makes the pr
 
 > Phase 3 shipped a basic streaming indicator and minimal error display. Citation UI and corpus-aware empty/error states are still out of scope.
 
-- [ ] Citation chips/links on assistant messages (company, filing type, date, page/section)
-- [ ] Source passage panel — show underlying excerpt for selected citation
-- [ ] Empty states (no threads, no corpus match)
-- [ ] Error states (auth expired, retrieval failure, grounding failure, network/CORS)
-- [ ] Loading/streaming status during assistant run
-- [ ] Verify: click a citation → see the exact passage from the filing
+- [x] Citation chips/links on assistant messages (company, filing type, date, page/section)
+- [x] Source passage panel — show underlying excerpt for selected citation
+- [x] Empty states (no threads, no corpus match)
+- [x] Error states (auth expired, retrieval failure, grounding failure, network/CORS)
+- [x] Loading/streaming status during assistant run
+- [x] Verify: click a citation → see the exact passage from the filing
 
 ---
 

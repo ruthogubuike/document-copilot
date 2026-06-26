@@ -5,10 +5,21 @@ export type ChatThreadSummary = {
   updatedAt: string
 }
 
-export type ChatMessagePart = {
-  type: string
-  text?: string
-}
+import type { CitationData } from '@/lib/types/citation'
+
+export type ChatMessagePart =
+  | {
+      type: 'text'
+      text: string
+    }
+  | {
+      type: 'data-citation'
+      data: CitationData
+    }
+  | {
+      type: string
+      text?: string
+    }
 
 export type ChatUIMessage = {
   id: string

@@ -67,6 +67,24 @@ async def test_search_filings_registers_chunks_and_passes_filters() -> None:
 
 
 @pytest.mark.asyncio
+async def test_search_filings_fiscal_year_sets_exact_range() -> None:
+    passage = _passage()
+    retriever = MagicMock(spec=HybridRetriever)
+    retriever.retrieve = AsyncMock(return_value=[passage])
+    deps = DocumentAgentDeps(retriever=retriever, session=AsyncMock())
+    ctx = _run_context(deps)
+
+    await search_filings(ctx, "iPhone revenue", ticker="AAPL", fiscal_year=2027)
+
+    call_kwargs = retriever.retrieve.await_args.kwargs
+    assert call_kwargs["filters"] == RetrievalFilters(
+        ticker="AAPL",
+        fiscal_year_min=2027,
+        fiscal_year_max=2027,
+    )
+
+
+@pytest.mark.asyncio
 async def test_read_chunk_registers_passage() -> None:
     passage = _passage()
     retriever = MagicMock(spec=HybridRetriever)

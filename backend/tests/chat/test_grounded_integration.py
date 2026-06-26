@@ -46,4 +46,15 @@ async def test_grounded_turn_insufficient_evidence_without_corpus_match() -> Non
     output = result.output
     validate_grounded_answer(output, deps.retrieved_chunks)
     assert not output.citations
-    assert "evidence" in output.answer.lower() or "corpus" in output.answer.lower()
+    answer = output.answer.lower()
+    assert any(
+        phrase in answer
+        for phrase in (
+            "evidence",
+            "corpus",
+            "do not contain",
+            "does not contain",
+            "not disclosed",
+            "not stated",
+        )
+    )

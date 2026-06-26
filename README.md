@@ -49,9 +49,76 @@ You also need accounts/keys for external services once the app is wired up. Star
 
 ## Running locally
 
-To be added during the build. Setup guides:
+Create local env files:
 
-- [Supabase](docs/guides/supabase-setup.md) — account, hosted project (dashboard or CLI)
+```powershell
+Copy-Item backend/.env.example backend/.env
+Copy-Item frontend/.env.example frontend/.env
+```
+
+Fill in `backend/.env`:
+
+```text
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+DATABASE_URL=
+OPENAI_API_KEY=
+OPENAI_EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_EMBEDDING_DIMENSIONS=1536
+OPENAI_CHAT_MODEL=gpt-4.1-mini
+AGENT_MAX_TOOL_CALLS=20
+ALLOWED_ORIGINS=http://localhost:5173
+```
+
+Fill in `frontend/.env`:
+
+```text
+VITE_API_BASE_URL=http://127.0.0.1:8000
+VITE_SUPABASE_URL=
+VITE_SUPABASE_ANON_KEY=
+```
+
+Install dependencies and migrate the database:
+
+```powershell
+cd backend
+uv sync
+uv run alembic upgrade head
+
+cd ../frontend
+pnpm install
+```
+
+Run the backend and frontend in two terminals:
+
+```powershell
+cd backend
+uv run uvicorn app.main:app --reload
+```
+
+```powershell
+cd frontend
+pnpm dev
+```
+
+Then open `http://localhost:5173`. The API health check is `http://127.0.0.1:8000/health`.
+
+To load or refresh the sample corpus after downloading the SEC filings:
+
+```powershell
+cd backend
+uv run python -m ingest.load_source_documents
+uv run python -m ingest.smoke_test_chunk
+uv run python -m ingest.load_chunks
+uv run python -m ingest.verify_corpus
+```
+
+Re-run a single filing with `uv run python -m ingest.load_chunks --accession <accession> --force-rechunk`.
+
+Setup details live in:
+
+- [Supabase](docs/guides/supabase-setup.md)
 - [Backend](docs/guides/backend-setup.md)
 - [Frontend](docs/guides/frontend-setup.md)
 

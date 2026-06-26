@@ -4,7 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.api.chat import router as chat_router
 from app.auth.dependencies import CurrentUser
 from app.config import settings
+from app.logging import configure_logging
 
+configure_logging()
 app = FastAPI(title="Document Copilot API")
 
 app.add_middleware(

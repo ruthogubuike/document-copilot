@@ -91,6 +91,48 @@ def test_get_messages_returns_403_for_other_users_thread() -> None:
     assert response.status_code == 403
 
 
+def test_delete_thread_returns_204() -> None:
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_bearer_token] = lambda: "token"
+    try:
+        with (
+            patch("app.chat.access.get_thread_by_id", return_value=_thread_row()),
+            patch("app.api.chat.create_user_client"),
+            patch("app.api.chat.delete_thread") as delete_mock,
+        ):
+            response = client.delete(
+                f"/chat/threads/{THREAD_ID}",
+                headers={"Authorization": "Bearer token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 204
+    delete_mock.assert_called_once()
+
+
+def test_delete_thread_returns_403_for_other_users_thread() -> None:
+    app.dependency_overrides[get_current_user] = _override_user
+    app.dependency_overrides[get_bearer_token] = lambda: "token"
+    try:
+        with (
+            patch(
+                "app.chat.access.get_thread_by_id",
+                return_value=_thread_row(user_id=OTHER_USER_ID),
+            ),
+            patch("app.api.chat.delete_thread") as delete_mock,
+        ):
+            response = client.delete(
+                f"/chat/threads/{THREAD_ID}",
+                headers={"Authorization": "Bearer token"},
+            )
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+    delete_mock.assert_not_called()
+
+
 def test_stream_returns_event_stream() -> None:
     from collections.abc import AsyncIterator
     from contextlib import asynccontextmanager

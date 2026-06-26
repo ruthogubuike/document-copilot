@@ -85,6 +85,10 @@ def create_thread(
     return _parse_thread(response.data[0])
 
 
+def delete_thread(client: Client, thread_id: uuid.UUID) -> None:
+    client.table("chat_threads").delete().eq("id", str(thread_id)).execute()
+
+
 def get_thread_for_user(client: Client, thread_id: uuid.UUID) -> ChatThreadRow | None:
     response = (
         client.table("chat_threads")
@@ -147,6 +151,7 @@ def append_messages(
     user_parts: list[dict[str, Any]],
     assistant_content: str,
     assistant_parts: list[dict[str, Any]],
+    title: str | None = None,
 ) -> tuple[ChatMessageRow, ChatMessageRow]:
     base_sequence = _next_sequence(client, thread_id)
     rows = [
@@ -170,9 +175,12 @@ def append_messages(
     response = client.table("chat_messages").insert(rows).execute()
     user_row = _parse_message(response.data[0])
     assistant_row = _parse_message(response.data[1])
-    client.table("chat_threads").update(
-        {"updated_at": datetime.now(UTC).isoformat()}
-    ).eq("id", str(thread_id)).execute()
+    thread_update: dict[str, Any] = {"updated_at": datetime.now(UTC).isoformat()}
+    if title is not None and base_sequence == 0:
+        thread_update["title"] = title
+    client.table("chat_threads").update(thread_update).eq(
+        "id", str(thread_id)
+    ).execute()
     return user_row, assistant_row
 
 

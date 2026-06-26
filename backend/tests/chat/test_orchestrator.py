@@ -10,6 +10,7 @@ from datetime import UTC, date, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
+from pydantic_ai.exceptions import UsageLimitExceeded
 
 from app.assistant.outputs import Citation, GroundedAnswer
 from app.auth.dependencies import AuthenticatedUser
@@ -192,4 +193,26 @@ async def test_run_grounded_turn_maps_validator_failure_to_error_event() -> None
     payload = json.loads(chunks[-2].removeprefix("data: ").strip())
     assert payload["type"] == "error"
     assert payload["errorText"] == "bad citations"
+    append_messages.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_run_grounded_turn_maps_usage_limit_to_error_event() -> None:
+    @asynccontextmanager
+    async def limit_run_stream(*_args, **_kwargs):
+        raise UsageLimitExceeded("tool_calls_limit exceeded")
+        yield  # pragma: no cover
+
+    with (
+        patch("app.chat.orchestrator.require_thread_access"),
+        patch("app.chat.orchestrator.ensure_user"),
+        patch("app.chat.orchestrator.get_async_session", _fake_session),
+        patch("app.chat.orchestrator.document_agent.run_stream", limit_run_stream),
+        patch("app.chat.orchestrator.append_messages") as append_messages,
+    ):
+        chunks = await _collect()
+
+    payload = json.loads(chunks[-2].removeprefix("data: ").strip())
+    assert payload["type"] == "error"
+    assert "too many filing lookups" in payload["errorText"]
     append_messages.assert_not_called()

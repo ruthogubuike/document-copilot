@@ -1,44 +1,51 @@
 import { useState } from 'react'
-import { MessageSquarePlusIcon } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 
-import { Button } from '@/components/ui/button'
-import { useChatThreads } from '@/pages/chat/chat-threads-context'
+import { ChatErrorBanner } from '@/components/chat/chat-error-banner'
+import { ChatInput } from '@/components/chat/chat-input'
+import { EmptyThreadState } from '@/components/chat/empty-thread-state'
+import { mapUnknownError, type ChatErrorDisplay } from '@/lib/chat/chat-errors'
+import { useChatThreads } from '@/pages/chat/use-chat-threads'
 
 export function ChatIndexPage() {
   const navigate = useNavigate()
   const { createThread } = useChatThreads()
   const [isCreating, setIsCreating] = useState(false)
+  const [error, setError] = useState<ChatErrorDisplay | null>(null)
 
-  async function handleNewChat() {
+  async function handleStart(prompt: string) {
+    if (isCreating) {
+      return
+    }
     setIsCreating(true)
+    setError(null)
     try {
       const id = await createThread()
-      navigate(`/chat/${id}`)
+      navigate(`/chat/${id}`, { state: { pendingPrompt: prompt } })
+    } catch (err: unknown) {
+      setError(mapUnknownError(err))
     } finally {
       setIsCreating(false)
     }
   }
 
   return (
-    <div className="flex flex-1 flex-col items-center justify-center gap-4 p-8 text-center">
-      <div className="max-w-md space-y-2">
-        <h1 className="text-2xl font-semibold">Start a conversation</h1>
-        <p className="text-muted-foreground text-sm">
-          Ask questions about SEC filings. Responses are stubbed for now while
-          retrieval is wired up.
-        </p>
+    <div className="flex min-h-0 flex-1 flex-col">
+      <div className="flex min-h-0 flex-1 flex-col overflow-auto">
+        <EmptyThreadState
+          disabled={isCreating}
+          onPromptSelect={(text) => {
+            void handleStart(text)
+          }}
+        />
       </div>
-      <Button
-        type="button"
-        onClick={() => {
-          void handleNewChat()
-        }}
+      {error ? <ChatErrorBanner error={error} /> : null}
+      <ChatInput
         disabled={isCreating}
-      >
-        <MessageSquarePlusIcon />
-        New chat
-      </Button>
+        onSubmit={(text) => {
+          void handleStart(text)
+        }}
+      />
     </div>
   )
 }

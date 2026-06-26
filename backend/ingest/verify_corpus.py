@@ -9,18 +9,63 @@ from __future__ import annotations
 from sqlalchemy import create_engine, func, select, text
 
 from app.config import settings
-from app.database.models import DocumentChunk, SourceDocument
+from app.database.models import DocumentChunk
+from app.database.session import get_async_session
 from app.retrieval.asyncio_compat import run_async
 from app.retrieval.retriever import HybridRetriever
 from app.retrieval.types import RetrievalFilters
-from app.database.session import get_async_session
 
-CLIENT_BRIEF_QUERIES = [
-    ("AAPL revenue mix iPhone Services", "AAPL"),
-    ("NVIDIA Data Center demand drivers", "NVDA"),
-    ("Amazon AWS operating income margin", "AMZN"),
-    ("Microsoft Azure AI infrastructure", "MSFT"),
-    ("Alphabet Google Cloud revenue", "GOOGL"),
+CLIENT_BRIEF_QUERIES: list[tuple[str, str | None, tuple[str, ...]]] = [
+    (
+        "Apple 2021 2025 revenue mix iPhone Services Mac iPad Wearables",
+        "AAPL",
+        ("iphone", "services", "mac", "ipad", "wearables"),
+    ),
+    (
+        "Amazon AWS operating income margin North America International 2021 2025",
+        "AMZN",
+        ("aws", "operating income", "north america", "international"),
+    ),
+    (
+        "NVIDIA Data Center demand drivers customer concentration supply constraints",
+        "NVDA",
+        ("data center", "supply", "customer"),
+    ),
+    (
+        "Microsoft Azure AI infrastructure cloud capacity constraints",
+        "MSFT",
+        ("azure", "cloud", "capacity"),
+    ),
+    (
+        "Alphabet Google Search YouTube ads Google Network subscriptions devices Google Cloud revenue",
+        "GOOGL",
+        ("google search", "youtube", "google cloud"),
+    ),
+    (
+        "AI cloud infrastructure export controls supply chain regulation risk factors",
+        None,
+        ("risk", "ai", "regulation"),
+    ),
+    (
+        "Apple NVIDIA supplier concentration third-party manufacturing",
+        None,
+        ("supplier", "manufacturing"),
+    ),
+    (
+        "Microsoft Alphabet Amazon NVIDIA capital expenditures purchase commitments AI cloud infrastructure",
+        None,
+        ("capital expenditures", "purchase commitments"),
+    ),
+    (
+        "geographic revenue exposures latest 10-K year-over-year changes",
+        None,
+        ("geographic", "revenue"),
+    ),
+    (
+        "generative AI improved margins evidence filings refuse infer beyond filings",
+        None,
+        ("margin", "ai"),
+    ),
 ]
 
 
@@ -71,20 +116,39 @@ def verify_database() -> None:
 
 
 async def verify_retrieval() -> None:
-    retriever = HybridRetriever(top_k=3)
+    retriever = HybridRetriever(top_k=5)
     print("\nClient-brief retrieval smoke:")
     async with get_async_session() as session:
-        for query, ticker in CLIENT_BRIEF_QUERIES:
+        for query, ticker, expected_terms in CLIENT_BRIEF_QUERIES:
+            filters = RetrievalFilters(ticker=ticker) if ticker else RetrievalFilters()
             passages = await retriever.retrieve(
                 session,
                 query,
-                filters=RetrievalFilters(ticker=ticker),
+                filters=filters,
             )
             if not passages:
-                print(f"  FAIL {ticker}: no passages for {query!r}")
+                label = ticker or "ALL"
+                print(f"  FAIL {label}: no passages for {query!r}")
                 continue
+            evidence_parts: list[str] = []
+            for passage in passages:
+                evidence_parts.append(passage.text)
+                evidence_parts.extend(
+                    neighbor.text for neighbor in passage.neighbor_chunks
+                )
+            evidence_text = "\n".join(evidence_parts).lower()
+            missing_terms = [
+                term for term in expected_terms if term not in evidence_text
+            ]
             preview = passages[0].text[:100].replace("\n", " ")
-            print(f"  OK   {ticker}: {preview!r}...")
+            label = ticker or "ALL"
+            if missing_terms:
+                print(
+                    f"  WARN {label}: missing {missing_terms!r} in top evidence for {query!r}"
+                )
+                print(f"       top preview: {preview!r}...")
+            else:
+                print(f"  OK   {label}: {preview!r}...")
 
 
 def main() -> None:

@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Response, status
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
@@ -14,7 +14,12 @@ from app.chat.access import require_thread_access
 from app.chat.messages import UIMessage, message_row_to_ui
 from app.chat.orchestrator import run_grounded_turn
 from app.chat.streaming import STREAM_HEADERS
-from app.database.chats import create_thread, list_messages, list_threads
+from app.database.chats import (
+    create_thread,
+    delete_thread,
+    list_messages,
+    list_threads,
+)
 from app.database.supabase import create_user_client
 from app.database.users import ensure_user
 
@@ -76,6 +81,18 @@ def post_thread(
         title=body.title or "New chat",
     )
     return _thread_response(thread)
+
+
+@router.delete("/threads/{thread_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_thread_endpoint(
+    thread_id: uuid.UUID,
+    user: CurrentUser,
+    token: str = Depends(get_bearer_token),
+) -> Response:
+    require_thread_access(thread_id, user)
+    client = create_user_client(token)
+    delete_thread(client, thread_id)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.get("/threads/{thread_id}/messages", response_model=ThreadMessagesResponse)

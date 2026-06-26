@@ -38,7 +38,7 @@ class Settings(BaseSettings):
     openai_embedding_dimensions: int = 1536
 
     openai_chat_model: str = "gpt-4.1-mini"
-    agent_max_tool_calls: int = 10
+    agent_max_tool_calls: int = 20
 
     retrieval_candidate_k: int = 50
     retrieval_top_k: int = 10

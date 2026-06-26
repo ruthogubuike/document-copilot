@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import logging
 import uuid
 from collections.abc import AsyncIterator
 
+import structlog
 from pydantic import ValidationError
+from pydantic_ai.exceptions import UnexpectedModelBehavior, UsageLimitExceeded
 from pydantic_ai.usage import UsageLimits
 
 from app.assistant.agent import document_agent
@@ -17,6 +18,7 @@ from app.chat.access import require_thread_access
 from app.chat.messages import (
     UIMessage,
     citation_parts,
+    derive_thread_title,
     latest_user_message,
     messages_to_agent_history,
     text_parts,
@@ -38,10 +40,11 @@ from app.database.session import get_async_session
 from app.database.supabase import create_user_client
 from app.database.users import ensure_user
 from app.grounding.normalize import normalize_grounded_answer
+from app.grounding.period import validate_period_alignment
 from app.grounding.validator import GroundingError, validate_grounded_answer
 from app.retrieval.retriever import HybridRetriever
 
-logger = logging.getLogger(__name__)
+logger = structlog.get_logger(__name__)
 
 
 async def run_grounded_turn(
@@ -92,6 +95,7 @@ async def run_grounded_turn(
 
             output = normalize_grounded_answer(output, deps.retrieved_chunks)
             validate_grounded_answer(output, deps.retrieved_chunks)
+            validate_period_alignment(user_text, output, deps.retrieved_chunks)
 
             citation_data_parts = citation_parts(output.citations, deps.retrieved_chunks)
             assistant_parts = text_parts(output.answer) + citation_data_parts
@@ -109,6 +113,7 @@ async def run_grounded_turn(
                 user_parts=user_parts,
                 assistant_content=output.answer,
                 assistant_parts=assistant_parts,
+                title=derive_thread_title(user_text),
             )
             append_citations(
                 client,
@@ -116,7 +121,7 @@ async def run_grounded_turn(
                 output.citations,
                 deps.retrieved_chunks,
             )
-    except ValidationError:
+    except (ValidationError, UnexpectedModelBehavior):
         yield sse_error(
             "The assistant returned an invalid answer format. Please try again."
         )
@@ -126,8 +131,19 @@ async def run_grounded_turn(
         yield sse_error(str(exc))
         yield sse_done()
         return
+    except UsageLimitExceeded:
+        yield sse_error(
+            "This question required too many filing lookups. Try narrowing it "
+            "(one company, one fiscal year, or a smaller comparison)."
+        )
+        yield sse_done()
+        return
     except Exception:
-        logger.exception("Grounded chat turn failed")
+        logger.exception(
+            "grounded_chat_turn_failed",
+            thread_id=str(thread_id),
+            user_id=str(user.id),
+        )
         yield sse_error("Failed to generate a grounded answer.")
         yield sse_done()
         return

@@ -1,7 +1,5 @@
 import {
-  createContext,
   useCallback,
-  useContext,
   useEffect,
   useMemo,
   useState,
@@ -11,16 +9,7 @@ import {
 import { api } from '@/lib/api'
 import { ApiError } from '@/lib/http'
 import type { ChatThreadSummary } from '@/lib/types/chat'
-
-type ChatThreadsContextValue = {
-  threads: ChatThreadSummary[]
-  isLoading: boolean
-  error: string | null
-  refreshThreads: () => Promise<void>
-  createThread: () => Promise<string>
-}
-
-const ChatThreadsContext = createContext<ChatThreadsContextValue | null>(null)
+import { ChatThreadsContext } from '@/pages/chat/chat-threads-context-value'
 
 export function ChatThreadsProvider({ children }: { children: ReactNode }) {
   const [threads, setThreads] = useState<ChatThreadSummary[]>([])
@@ -81,6 +70,11 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
     return thread.id
   }, [refreshThreads])
 
+  const deleteThread = useCallback(async (threadId: string) => {
+    await api.deleteThread(threadId)
+    setThreads((current) => current.filter((thread) => thread.id !== threadId))
+  }, [])
+
   const value = useMemo(
     () => ({
       threads,
@@ -88,8 +82,9 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
       error,
       refreshThreads,
       createThread,
+      deleteThread,
     }),
-    [threads, isLoading, error, refreshThreads, createThread],
+    [threads, isLoading, error, refreshThreads, createThread, deleteThread],
   )
 
   return (
@@ -97,12 +92,4 @@ export function ChatThreadsProvider({ children }: { children: ReactNode }) {
       {children}
     </ChatThreadsContext.Provider>
   )
-}
-
-export function useChatThreads() {
-  const context = useContext(ChatThreadsContext)
-  if (!context) {
-    throw new Error('useChatThreads must be used within ChatThreadsProvider')
-  }
-  return context
 }

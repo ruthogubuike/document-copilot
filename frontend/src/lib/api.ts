@@ -28,6 +28,10 @@ export const api = {
     return http.post<ChatThreadSummary>('/chat/threads', title ? { title } : {})
   },
 
+  deleteThread(threadId: string): Promise<void> {
+    return http.delete<void>(`/chat/threads/${threadId}`)
+  },
+
   getThreadMessages(threadId: string): Promise<ThreadMessagesResponse> {
     return http.get<ThreadMessagesResponse>(`/chat/threads/${threadId}/messages`)
   },

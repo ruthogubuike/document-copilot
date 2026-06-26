@@ -1,14 +1,31 @@
 import type { UIMessage } from 'ai'
 
-import { cn } from '@/lib/utils'
-
+import { AssistantMessage } from '@/components/chat/assistant-message'
 import { getMessageText } from '@/components/chat/message-text'
+import type { CitationData } from '@/lib/types/citation'
+import { cn } from '@/lib/utils'
 
 type MessageProps = {
   message: UIMessage
+  selectedCitation: CitationData | null
+  onCitationSelect: (citation: CitationData) => void
 }
 
-export function Message({ message }: MessageProps) {
+export function Message({
+  message,
+  selectedCitation,
+  onCitationSelect,
+}: MessageProps) {
+  if (message.role === 'assistant') {
+    return (
+      <AssistantMessage
+        message={message}
+        selectedCitation={selectedCitation}
+        onCitationSelect={onCitationSelect}
+      />
+    )
+  }
+
   const text = getMessageText(message)
   const isUser = message.role === 'user'
 
@@ -18,10 +35,10 @@ export function Message({ message }: MessageProps) {
     >
       <div
         className={cn(
-          'max-w-[85%] rounded-2xl px-4 py-2 text-sm leading-relaxed whitespace-pre-wrap',
+          'max-w-[85%] px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
           isUser
-            ? 'bg-primary text-primary-foreground'
-            : 'bg-muted text-foreground',
+            ? 'bg-brand-gradient rounded-2xl rounded-br-md text-white shadow-sm shadow-primary/20'
+            : 'bg-muted text-foreground rounded-2xl rounded-bl-md',
         )}
       >
         {text}

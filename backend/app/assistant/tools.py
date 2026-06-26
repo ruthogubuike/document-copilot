@@ -51,10 +51,18 @@ async def search_filings(
     query: str,
     *,
     ticker: str | None = None,
+    fiscal_year: int | None = None,
     fiscal_year_min: int | None = None,
     fiscal_year_max: int | None = None,
 ) -> list[dict[str, Any]]:
-    """Search SEC filings for passages relevant to a question."""
+    """Search SEC filings for passages relevant to a question.
+
+    When the question targets one fiscal year, pass `fiscal_year`. An empty result
+    means the corpus has no matching filing for that period.
+    """
+    if fiscal_year is not None:
+        fiscal_year_min = fiscal_year
+        fiscal_year_max = fiscal_year
     filters = RetrievalFilters(
         ticker=ticker,
         fiscal_year_min=fiscal_year_min,
