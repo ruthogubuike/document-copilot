@@ -31,8 +31,7 @@ Both services live in a single Railway **project**, each pinned to a **root dire
 {
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
-    "builder": "RAILPACK",
-    "watchPatterns": ["app/**", "ingest/**", "pyproject.toml", "uv.lock"]
+    "builder": "RAILPACK"
   },
   "deploy": {
     "startCommand": "uv run uvicorn app.main:app --host 0.0.0.0 --port $PORT",
@@ -49,8 +48,7 @@ Both services live in a single Railway **project**, each pinned to a **root dire
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm build",
-    "watchPatterns": ["src/**", "public/**", "index.html", "package.json", "pnpm-lock.yaml"]
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm build"
   },
   "deploy": {
     "startCommand": "pnpm start",
@@ -136,7 +134,7 @@ uv run python -m ingest.verify_corpus
 
 ## Continuous deploys
 
-With the GitHub App connected and root directories set, pushing to `main` triggers a rebuild of whichever service's `watchPatterns` changed. Backend redeploys are zero-touch; for frontend changes to `VITE_*` values (not code), trigger a redeploy so the new value is baked in.
+With the GitHub App connected and a root directory set per service, pushing to `main` rebuilds only the service whose root directory (`backend/` or `frontend/`) changed — Railway scopes monorepo deploys to the root directory, so no `watchPatterns` are needed. Backend redeploys are zero-touch; for frontend changes to `VITE_*` values (not code), trigger a redeploy so the new value is baked into the static bundle.
 
 ## Troubleshooting
 

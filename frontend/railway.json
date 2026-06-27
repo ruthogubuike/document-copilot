@@ -2,8 +2,7 @@
   "$schema": "https://railway.com/railway.schema.json",
   "build": {
     "builder": "RAILPACK",
-    "buildCommand": "pnpm install --frozen-lockfile && pnpm build",
-    "watchPatterns": ["src/**", "public/**", "index.html", "package.json", "pnpm-lock.yaml", "vite.config.ts"]
+    "buildCommand": "pnpm install --frozen-lockfile && pnpm build"
   },
   "deploy": {
     "startCommand": "pnpm start",
