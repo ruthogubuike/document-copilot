@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 import pytest
 from pydantic_ai import RunContext
 
+from app.assistant import tools
 from app.assistant.deps import DocumentAgentDeps
 from app.assistant.tools import read_chunk, read_surrounding_chunks, register_passage, search_filings
 from app.retrieval.retriever import HybridRetriever
@@ -82,6 +83,64 @@ async def test_search_filings_fiscal_year_sets_exact_range() -> None:
         fiscal_year_min=2027,
         fiscal_year_max=2027,
     )
+
+
+@pytest.mark.asyncio
+async def test_search_filings_reports_company_absent_from_corpus(monkeypatch) -> None:
+    retriever = MagicMock(spec=HybridRetriever)
+    retriever.retrieve = AsyncMock(return_value=[])
+    deps = DocumentAgentDeps(retriever=retriever, session=AsyncMock())
+    ctx = _run_context(deps)
+
+    monkeypatch.setattr(tools, "count_matching_filings", AsyncMock(return_value=0))
+    monkeypatch.setattr(tools, "available_fiscal_years", AsyncMock(return_value=[]))
+    monkeypatch.setattr(
+        tools, "available_tickers", AsyncMock(return_value=["AAPL", "AMZN"])
+    )
+
+    result = await search_filings(ctx, "risk factors", ticker="TSLA")
+
+    assert isinstance(result, dict)
+    assert result["status"] == "no_matching_filings"
+    assert result["available_tickers"] == ["AAPL", "AMZN"]
+    assert deps.retrieved_chunks == {}
+
+
+@pytest.mark.asyncio
+async def test_search_filings_reports_period_out_of_range(monkeypatch) -> None:
+    retriever = MagicMock(spec=HybridRetriever)
+    retriever.retrieve = AsyncMock(return_value=[])
+    deps = DocumentAgentDeps(retriever=retriever, session=AsyncMock())
+    ctx = _run_context(deps)
+
+    monkeypatch.setattr(tools, "count_matching_filings", AsyncMock(return_value=0))
+    monkeypatch.setattr(
+        tools,
+        "available_fiscal_years",
+        AsyncMock(return_value=[2021, 2022, 2023, 2024, 2025]),
+    )
+
+    result = await search_filings(ctx, "risk factors", ticker="AAPL", fiscal_year=2018)
+
+    assert isinstance(result, dict)
+    assert result["status"] == "no_matching_filings"
+    assert result["available_fiscal_years"] == [2021, 2022, 2023, 2024, 2025]
+    assert "2018" in result["message"]
+
+
+@pytest.mark.asyncio
+async def test_search_filings_reports_filing_present_but_no_passage(monkeypatch) -> None:
+    retriever = MagicMock(spec=HybridRetriever)
+    retriever.retrieve = AsyncMock(return_value=[])
+    deps = DocumentAgentDeps(retriever=retriever, session=AsyncMock())
+    ctx = _run_context(deps)
+
+    monkeypatch.setattr(tools, "count_matching_filings", AsyncMock(return_value=1))
+
+    result = await search_filings(ctx, "obscure metric", ticker="AAPL", fiscal_year=2024)
+
+    assert isinstance(result, dict)
+    assert result["status"] == "no_passages_found"
 
 
 @pytest.mark.asyncio

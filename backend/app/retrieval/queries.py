@@ -82,6 +82,41 @@ async def fulltext_search_ids(
     return [chunk.id for chunk, _document in rows]
 
 
+async def count_matching_filings(
+    session: AsyncSession,
+    filters: RetrievalFilters,
+) -> int:
+    """Count source documents matching the filters, ignoring query relevance."""
+    stmt = select(func.count()).select_from(SourceDocument).where(
+        SourceDocument.form == filters.form
+    )
+    if filters.ticker is not None:
+        stmt = stmt.where(SourceDocument.ticker == filters.ticker)
+    if filters.fiscal_year_min is not None:
+        stmt = stmt.where(SourceDocument.fiscal_year >= filters.fiscal_year_min)
+    if filters.fiscal_year_max is not None:
+        stmt = stmt.where(SourceDocument.fiscal_year <= filters.fiscal_year_max)
+    return int((await session.execute(stmt)).scalar_one())
+
+
+async def available_tickers(session: AsyncSession) -> list[str]:
+    stmt = select(SourceDocument.ticker).distinct().order_by(SourceDocument.ticker)
+    return [ticker for (ticker,) in (await session.execute(stmt)).all()]
+
+
+async def available_fiscal_years(
+    session: AsyncSession,
+    ticker: str | None = None,
+) -> list[int]:
+    stmt = select(SourceDocument.fiscal_year).distinct().where(
+        SourceDocument.fiscal_year.is_not(None)
+    )
+    if ticker is not None:
+        stmt = stmt.where(SourceDocument.ticker == ticker)
+    stmt = stmt.order_by(SourceDocument.fiscal_year)
+    return [year for (year,) in (await session.execute(stmt)).all()]
+
+
 async def fetch_passages_by_ids(
     session: AsyncSession,
     chunk_ids: list[uuid.UUID],
