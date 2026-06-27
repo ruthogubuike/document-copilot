@@ -121,6 +121,7 @@ Setup details live in:
 - [Supabase](docs/guides/supabase-setup.md)
 - [Backend](docs/guides/backend-setup.md)
 - [Frontend](docs/guides/frontend-setup.md)
+- [Railway (production)](docs/guides/railway-setup.md)
 
 ## Sample SEC data
 

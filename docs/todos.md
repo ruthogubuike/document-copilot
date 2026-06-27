@@ -246,6 +246,7 @@ Goal: 5 senior analysts can use it for a week and report ≥3 hours saved per an
 | [architecture.md](architecture.md)                   | System design, data model, streaming contract |
 | [guides/supabase-setup.md](guides/supabase-setup.md) | Hosted Postgres + Auth                        |
 | [guides/backend-setup.md](guides/backend-setup.md)   | FastAPI + Alembic commands                    |
-| [guides/frontend-setup.md](guides/frontend-setup.md) | Vite + React scaffold commands                |
+| [guides/frontend-setup.md](guides/frontend-setup.md) | Vite + React scaffold commands              |
+| [guides/railway-setup.md](guides/railway-setup.md)   | Production deploy on Railway                  |
 
 
