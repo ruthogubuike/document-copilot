@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -23,6 +24,88 @@ OPENAI_EMBEDDING_MAX_INPUT_TOKENS = 8191
 # HybridChunker contextualize() can add heading prefixes — stay below the embed limit.
 CHUNKER_MAX_TOKENS = 7680
 EMBED_BATCH_SIZE = 128
+
+_TABLE_ROW_RE = re.compile(r"^\s*\|.*\|\s*$")
+_SEPARATOR_CELL_RE = re.compile(r"^:?-+:?$")
+
+
+def _split_table_row(line: str) -> list[str]:
+    stripped = line.strip()
+    if stripped.startswith("|"):
+        stripped = stripped[1:]
+    if stripped.endswith("|"):
+        stripped = stripped[:-1]
+    return [cell.strip() for cell in stripped.split("|")]
+
+
+def _is_separator_row(cells: list[str]) -> bool:
+    return any("-" in cell for cell in cells) and all(
+        cell == "" or _SEPARATOR_CELL_RE.match(cell) for cell in cells
+    )
+
+
+def _clean_table_block(block: list[str]) -> list[str]:
+    """Collapse docling's mangled financial tables.
+
+    SEC filing tables come back with the row-label column repeated several times
+    and numeric cells scattered across empty spacer columns. Drop columns that are
+    empty in every data row and columns that exactly duplicate the previous kept
+    column, then rebuild the grid.
+    """
+    rows = [_split_table_row(line) for line in block]
+    width = max(len(row) for row in rows)
+    rows = [row + [""] * (width - len(row)) for row in rows]
+    separator_flags = [_is_separator_row(row) for row in rows]
+    data_indexes = [i for i, is_sep in enumerate(separator_flags) if not is_sep]
+    if not data_indexes:
+        return block
+
+    def column_values(col: int) -> list[str]:
+        return [rows[i][col] for i in data_indexes]
+
+    kept_columns: list[int] = []
+    for col in range(width):
+        values = column_values(col)
+        if all(value == "" for value in values):
+            continue
+        if kept_columns and values == column_values(kept_columns[-1]):
+            continue
+        kept_columns.append(col)
+
+    if not kept_columns:
+        return block
+
+    cleaned: list[str] = []
+    for i, row in enumerate(rows):
+        if separator_flags[i]:
+            cleaned.append("| " + " | ".join("---" for _ in kept_columns) + " |")
+            continue
+        cells = [row[col] for col in kept_columns]
+        if all(cell == "" for cell in cells):
+            continue
+        cleaned.append("| " + " | ".join(cells) + " |")
+    return cleaned
+
+
+def clean_markdown_tables(text: str) -> str:
+    lines = text.split("\n")
+    out: list[str] = []
+    i = 0
+    while i < len(lines):
+        if not _TABLE_ROW_RE.match(lines[i]):
+            out.append(lines[i])
+            i += 1
+            continue
+        j = i
+        while j < len(lines) and _TABLE_ROW_RE.match(lines[j]):
+            j += 1
+        block = lines[i:j]
+        has_separator = any(
+            _is_separator_row(_split_table_row(line)) for line in block
+        )
+        out.extend(_clean_table_block(block) if has_separator else block)
+        i = j
+    return "\n".join(out)
 
 
 class PatchedOpenAITokenizer(OpenAITokenizer):
@@ -119,8 +202,8 @@ def chunk_record_from_doc_chunk(
     tokenizer: PatchedOpenAITokenizer,
     filing: dict[str, Any],
 ) -> ChunkRecord:
-    raw_text = chunk.text
-    text = chunker.contextualize(chunk=chunk)
+    raw_text = clean_markdown_tables(chunk.text)
+    text = clean_markdown_tables(chunker.contextualize(chunk=chunk))
     token_count = tokenizer.count_tokens(text)
     if token_count > OPENAI_EMBEDDING_MAX_INPUT_TOKENS:
         text = raw_text

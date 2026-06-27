@@ -82,11 +82,33 @@ function parseBlocks(markdown: string): Block[] {
       const align = splitRow(lines[index + 1]).map(cellAlign)
       index += 2
       const rows: string[][] = []
-      while (index < lines.length && lines[index].includes('|')) {
+      while (
+        index < lines.length &&
+        lines[index].includes('|') &&
+        !isTableSeparator(lines[index])
+      ) {
         rows.push(splitRow(lines[index]))
         index += 1
       }
       blocks.push({ kind: 'table', header, align, rows })
+      continue
+    }
+
+    // Header-less table: a chunk can start (or be split) on the separator row,
+    // leaving the table with no header line above it. Render it as a grid anyway.
+    if (isTableSeparator(trimmed)) {
+      const align = splitRow(trimmed).map(cellAlign)
+      index += 1
+      const rows: string[][] = []
+      while (
+        index < lines.length &&
+        lines[index].includes('|') &&
+        !isTableSeparator(lines[index])
+      ) {
+        rows.push(splitRow(lines[index]))
+        index += 1
+      }
+      blocks.push({ kind: 'table', header: [], align, rows })
       continue
     }
 
@@ -113,6 +135,7 @@ function parseBlocks(markdown: string): Block[] {
         current === '' ||
         /^(#{1,6})\s+/.test(current) ||
         /^(\d+\.|[-*+])\s+/.test(current) ||
+        isTableSeparator(current) ||
         (current.includes('|') &&
           index + 1 < lines.length &&
           isTableSeparator(lines[index + 1]))
@@ -211,40 +234,61 @@ function renderBlock(block: Block, key: string): ReactNode {
         </ListTag>
       )
     }
-    case 'table':
+    case 'table': {
+      const columnCount = Math.max(
+        block.header.length,
+        block.align.length,
+        ...block.rows.map((row) => row.length),
+        1,
+      )
+      const isColumnEmpty = (col: number): boolean =>
+        (block.header[col] ?? '').trim() === '' &&
+        block.rows.every((row) => (row[col] ?? '').trim() === '')
+      const kept: number[] = []
+      for (let col = 0; col < columnCount; col += 1) {
+        if (!isColumnEmpty(col)) {
+          kept.push(col)
+        }
+      }
+      const columns = kept.length > 0 ? kept : [0]
+      const hasHeader = columns.some(
+        (col) => (block.header[col] ?? '').trim() !== '',
+      )
       return (
         <div key={key} className="overflow-x-auto">
           <table className="border-border w-full border-collapse text-xs">
-            <thead>
-              <tr className="border-border border-b">
-                {block.header.map((cell, cellIndex) => (
-                  <th
-                    key={`${key}-h-${cellIndex}`}
-                    className={cn(
-                      'text-muted-foreground px-2 py-1.5 font-semibold',
-                      ALIGN_CLASS[block.align[cellIndex] ?? 'left'],
-                    )}
-                  >
-                    {renderInline(cell, `${key}-h-${cellIndex}`)}
-                  </th>
-                ))}
-              </tr>
-            </thead>
+            {hasHeader ? (
+              <thead>
+                <tr className="border-border border-b">
+                  {columns.map((col) => (
+                    <th
+                      key={`${key}-h-${col}`}
+                      className={cn(
+                        'text-muted-foreground px-2 py-1.5 font-semibold',
+                        ALIGN_CLASS[block.align[col] ?? 'left'],
+                      )}
+                    >
+                      {renderInline(block.header[col] ?? '', `${key}-h-${col}`)}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+            ) : null}
             <tbody>
               {block.rows.map((row, rowIndex) => (
                 <tr
                   key={`${key}-r-${rowIndex}`}
                   className="border-border/60 border-b last:border-0"
                 >
-                  {block.header.map((_, cellIndex) => (
+                  {columns.map((col) => (
                     <td
-                      key={`${key}-r-${rowIndex}-${cellIndex}`}
+                      key={`${key}-r-${rowIndex}-${col}`}
                       className={cn(
                         'px-2 py-1.5 align-top',
-                        ALIGN_CLASS[block.align[cellIndex] ?? 'left'],
+                        ALIGN_CLASS[block.align[col] ?? 'left'],
                       )}
                     >
-                      {renderInline(row[cellIndex] ?? '', `${key}-c-${rowIndex}-${cellIndex}`)}
+                      {renderInline(row[col] ?? '', `${key}-c-${rowIndex}-${col}`)}
                     </td>
                   ))}
                 </tr>
@@ -253,6 +297,7 @@ function renderBlock(block: Block, key: string): ReactNode {
           </table>
         </div>
       )
+    }
   }
 }
 

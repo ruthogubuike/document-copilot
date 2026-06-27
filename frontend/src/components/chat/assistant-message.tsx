@@ -66,22 +66,6 @@ export function AssistantMessage({
           )}
         </div>
 
-        {citations.length > 0 ? (
-          <div className="flex flex-wrap gap-1.5 px-1">
-            {citations.map((citation) => (
-              <CitationChip
-                key={`${citation.chunkId}-${citation.citationIndex}`}
-                citation={citation}
-                selected={
-                  selectedCitation?.chunkId === citation.chunkId &&
-                  selectedCitation.citationIndex === citation.citationIndex
-                }
-                onSelect={onCitationSelect}
-              />
-            ))}
-          </div>
-        ) : null}
-
         {showNoCorpusCallout ? (
           <p className="text-muted-foreground border-border bg-background rounded-lg border px-3 py-2 text-xs">
             No matching passages in the corpus — verify before using in research.
