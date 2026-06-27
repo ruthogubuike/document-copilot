@@ -143,7 +143,7 @@ With the GitHub App connected and root directories set, pushing to `main` trigge
 | Symptom | Likely cause | Fix |
 | ------- | ------------ | --- |
 | Frontend build fails on `pnpm` | lockfile out of date | run `pnpm install` locally, commit `pnpm-lock.yaml`, push |
-| `vite preview` returns "host not allowed" | preview host check | the `preview.host: true` block in `vite.config.ts` must be deployed |
+| Frontend returns `403 Forbidden` | `vite preview` host check rejecting the Railway domain | `preview.allowedHosts` in `vite.config.ts` must include `.up.railway.app` (or your custom domain) |
 | Backend boots then crashes | missing required env var | check deploy logs; set the missing `SUPABASE_*` / `DATABASE_URL` / `OPENAI_API_KEY` |
 | 401/empty data in app | `VITE_*` baked at build time were wrong | fix vars, redeploy frontend |
 | CORS error in browser | `ALLOWED_ORIGINS` mismatch | set it to the exact frontend origin, redeploy backend |

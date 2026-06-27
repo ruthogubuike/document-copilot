@@ -3,7 +3,7 @@
   "build": {
     "builder": "RAILPACK",
     "buildCommand": "pnpm install --frozen-lockfile && pnpm build",
-    "watchPatterns": ["src/**", "public/**", "index.html", "package.json", "pnpm-lock.yaml"]
+    "watchPatterns": ["src/**", "public/**", "index.html", "package.json", "pnpm-lock.yaml", "vite.config.ts"]
   },
   "deploy": {
     "startCommand": "pnpm start",
