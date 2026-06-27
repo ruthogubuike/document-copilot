@@ -49,7 +49,7 @@ export function LoginPage() {
         <CardHeader>
           <CardTitle className="text-lg">Welcome back</CardTitle>
           <CardDescription>
-            Sign in with your email to access Document Copilot.
+            Sign in to query filings and get sourced answers.
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -87,8 +87,16 @@ export function LoginPage() {
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            Access is invite-only. Contact your administrator to request
-            login details.
+            Access is invite-only.{' '}
+            <a
+              href="https://www.linkedin.com/in/ruthogubuike/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline underline-offset-4 hover:text-foreground"
+            >
+              Contact the developer
+            </a>{' '}
+            to request login details.
           </p>
         </CardContent>
       </Card>
