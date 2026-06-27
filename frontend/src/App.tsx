@@ -7,7 +7,6 @@ import { ChatLayout } from '@/pages/chat/layout'
 import { ChatIndexPage } from '@/pages/chat/index'
 import { ChatThreadPage } from '@/pages/chat/thread'
 import { LoginPage } from '@/pages/login'
-import { SignUpPage } from '@/pages/signup'
 
 export default function App() {
   return (
@@ -16,7 +15,7 @@ export default function App() {
         <BrowserRouter>
           <Routes>
             <Route path="/login" element={<LoginPage />} />
-            <Route path="/signup" element={<SignUpPage />} />
+            <Route path="/signup" element={<Navigate to="/login" replace />} />
             <Route element={<ProtectedRoute />}>
               <Route path="/" element={<Navigate to="/chat" replace />} />
               <Route path="/chat" element={<ChatLayout />}>

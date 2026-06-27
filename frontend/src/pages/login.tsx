@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Navigate, useNavigate } from 'react-router-dom'
 
 import { BrandLogo } from '@/components/brand-logo'
 import { Button } from '@/components/ui/button'
@@ -87,13 +87,8 @@ export function LoginPage() {
             </Button>
           </form>
           <p className="mt-4 text-center text-sm text-muted-foreground">
-            No account?{' '}
-            <Link
-              className="text-primary font-medium underline-offset-4 hover:underline"
-              to="/signup"
-            >
-              Sign up
-            </Link>
+            Access is invite-only. Contact your administrator to request
+            login details.
           </p>
         </CardContent>
       </Card>
